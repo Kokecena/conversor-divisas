@@ -1,0 +1,69 @@
+package com.github.kokecena.conversordivisas.components.combobox;
+
+import com.github.kokecena.conversordivisas.components.combobox.exceptions.CurrencyNotFoundException;
+import com.github.kokecena.conversordivisas.components.combobox.model.Currency;
+
+import javax.swing.*;
+import java.util.List;
+import java.util.Map;
+import java.util.Optional;
+
+public class CurrencyComboBox extends JComboBox<Currency> {
+
+    private List<Currency> currencies;
+    private DefaultComboBoxModel<Currency> codesComboBoxModel;
+
+    public void setCurrency(String code) {
+        if (currencies == null || currencies.isEmpty()) {
+            throw new IllegalStateException("Model not initialized!");
+        }
+        codesComboBoxModel.setSelectedItem(currencies.stream()
+                .filter(currency -> currency.code().equalsIgnoreCase(code))
+                .findFirst()
+                .orElseThrow(() -> new CurrencyNotFoundException(code)));
+    }
+
+    public void setCurrency(Currency c) {
+        if (currencies == null || currencies.isEmpty()) {
+            throw new IllegalStateException("Model not initialized!");
+        }
+        codesComboBoxModel.setSelectedItem(currencies.stream()
+                .filter(currency -> currency.code().equalsIgnoreCase(c.code()))
+                .findFirst()
+                .orElseThrow(() -> new CurrencyNotFoundException(c.code())));
+    }
+
+    public Optional<Currency> getSelectedCurrency() {
+        if (currencies == null || currencies.isEmpty()) {
+            return Optional.empty();
+        }
+        return Optional.ofNullable((Currency) codesComboBoxModel.getSelectedItem());
+    }
+
+    public Currency getCurrentCurrency() {
+        if (currencies == null || currencies.isEmpty()) {
+            throw new IllegalStateException("Model not initialized!");
+        }
+        return (Currency) codesComboBoxModel.getSelectedItem();
+    }
+
+    public void setModel(Map<String, String> codes) {
+        currencies = codes.entrySet()
+                .stream()
+                .map(stringStringEntry -> new Currency(stringStringEntry.getKey(), stringStringEntry.getValue()))
+                .toList();
+        codesComboBoxModel = new DefaultComboBoxModel<>() {
+            @Override
+            public int getSize() {
+                return currencies.size();
+            }
+
+            @Override
+            public Currency getElementAt(int index) {
+                return currencies.get(index);
+            }
+        };
+        setModel(codesComboBoxModel);
+    }
+
+}

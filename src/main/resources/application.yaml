@@ -1,0 +1,11 @@
+app:
+  name: Conversor de divisas
+  version: v0.5
+  currency:
+    start-value: 1.0
+    first: mxn
+    second: usd
+
+service:
+  exchange-rate:
+    api-key: ${API-KEY}
