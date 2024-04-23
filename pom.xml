@@ -10,6 +10,7 @@
         <maven.compiler.source>17</maven.compiler.source>
         <maven.compiler.target>17</maven.compiler.target>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+        <org.slf4j.version>2.0.12</org.slf4j.version>
         <avaje.inject.version>9.12</avaje.inject.version>
     </properties>
    <build>
@@ -37,6 +38,7 @@
        </plugins>
    </build>
     <dependencies>
+        <!-- avaje -->
         <dependency>
             <groupId>io.avaje</groupId>
             <artifactId>avaje-inject</artifactId>
@@ -47,6 +49,18 @@
             <artifactId>avaje-config</artifactId>
             <version>3.13</version>
         </dependency>
+        <!--Logger-->
+        <dependency>
+            <groupId>org.slf4j</groupId>
+            <artifactId>slf4j-api</artifactId>
+            <version>${org.slf4j.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>org.slf4j</groupId>
+            <artifactId>slf4j-simple</artifactId>
+            <version>${org.slf4j.version}</version>
+        </dependency>
+        <!-- Swing -->
         <dependency>
             <groupId>com.formdev</groupId>
             <artifactId>flatlaf</artifactId>
@@ -62,6 +76,7 @@
             <artifactId>miglayout-swing</artifactId>
             <version>11.3</version>
         </dependency>
+        <!-- Commons -->
         <dependency>
             <groupId>com.google.code.gson</groupId>
             <artifactId>gson</artifactId>

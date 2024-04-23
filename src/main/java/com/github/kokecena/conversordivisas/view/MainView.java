@@ -9,6 +9,8 @@ import com.github.kokecena.conversordivisas.controller.ExchangeController;
 import io.avaje.config.Config;
 import io.github.parubok.swingfx.beans.binding.Bindings;
 import net.miginfocom.swing.MigLayout;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import javax.swing.JFrame;
 import javax.swing.JLabel;
@@ -27,13 +29,9 @@ import static io.github.parubok.fxprop.SwingPropertySupport.selectedItemProperty
 import static io.github.parubok.fxprop.SwingPropertySupport.textProperty;
 
 
-/**
- * Agregar
- * - Historial
- * - Banderas ???
- */
 public class MainView extends JFrame {
 
+    private static final Logger log = LoggerFactory.getLogger(MainView.class);
     private final ExchangeController controller;
     private CurrencyComboBox mainCurrencyCb;
     private CurrencyComboBox secondaryCurrencyCb;
@@ -60,12 +58,15 @@ public class MainView extends JFrame {
     }
 
     private CompletableFuture<Void> setupComboBox() {
+        log.info("Setup currencies combobox");
         return controller.getSupportedCodes(SwingUtilities::invokeLater)
                 .thenAccept(stringStringMap -> {
                     mainCurrencyCb.setModel(stringStringMap);
                     secondaryCurrencyCb.setModel(stringStringMap);
                     mainCurrencyCb.setCurrency(FIRST_CODE);
                     secondaryCurrencyCb.setCurrency(SECOND_CODE);
+                    setupBinders();
+                    setupListeners();
                 });
     }
 
@@ -80,6 +81,7 @@ public class MainView extends JFrame {
     }
 
     private void initComponents() {
+        log.info("Starting components");
         mainCurrencyText = new QueryTextField();
         secondaryCurrencyText = new QueryTextField();
         secondaryCurrencyText.setEditable(false);
@@ -103,11 +105,10 @@ public class MainView extends JFrame {
         add(secondaryCurrencyText, "wmin 100, wmax 100, split 3");
         add(new JSeparator(SwingConstants.VERTICAL), "growy");
         add(secondaryCurrencyCb, "wmin 180, wmax 180");
-        setupBinders();
-        setupListeners();
     }
 
     private void setupBinders() {
+        log.info("Setup binders");
         textProperty(header).bind(Bindings.createStringBinding(() -> {
             if (mainCurrencyCb.getSelectedCurrency().isPresent()) {
                 return mainCurrencyText.getQuery()
@@ -137,6 +138,7 @@ public class MainView extends JFrame {
     }
 
     private void setupListeners() {
+        log.info("Setup listeners");
         mainCurrencyText.addKeyListener(KLFactory.onKeyTyped(e -> {
             char c = e.getKeyChar();
             if (!(Character.isDigit(c) ||
@@ -148,7 +150,7 @@ public class MainView extends JFrame {
             }
         }));
         controller.toCurrencyCodeProperty().addListener((o, oldCode, newCode) -> secondaryCurrencyText.setText(calculateExchange(newCode).toString()));
-        mainCurrencyText.queryProperty().addListener((o, oldCode, newCode) -> secondaryCurrencyText.setText(calculateExchange(newCode).toString()));
+        mainCurrencyText.queryProperty().addListener(o -> secondaryCurrencyText.setText(calculateExchange(controller.getToCurrencyCode()).toString()));
         mainCurrencyCb.addActionListener(
                 e -> controller.updateExchangeRatesFrom(
                         mainCurrencyCb.getCurrentCurrency().code(),

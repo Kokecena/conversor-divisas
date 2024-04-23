@@ -3,6 +3,8 @@ package com.github.kokecena.conversordivisas.controller;
 import com.github.kokecena.conversordivisas.exchangerate.model.ExchangeRateCodes;
 import com.github.kokecena.conversordivisas.exchangerate.service.ExchangeRateService;
 import io.github.parubok.swingfx.beans.property.*;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.time.LocalDateTime;
 import java.util.HashMap;
@@ -12,24 +14,32 @@ import java.util.concurrent.Executor;
 
 public class ExchangeController {
 
+    private static final Logger log = LoggerFactory.getLogger(ExchangeController.class);
+
     private final Map<String, Double> conversionRates = new HashMap<>();
     private boolean exchangeRatesUpdated;
     private final ExchangeRateService exchangeRateService;
     private StringProperty toCurrencyCode;
     private ReadOnlyObjectWrapper<LocalDateTime> lastUpdate;
     private ReadOnlyDoubleWrapper currentValue;
+    private String baseCode;
 
     public ExchangeController(ExchangeRateService service) {
         exchangeRateService = service;
+        toCurrencyCodeProperty().addListener((o, oldValue, newValue) -> log.info("Change currency code from {} to {}", oldValue, newValue));
     }
 
     public CompletableFuture<Void> updateExchangeRatesFrom(String baseCode, Executor executor) {
+        this.baseCode = baseCode;
         return exchangeRateService.getExchangeFrom(baseCode, executor)
                 .thenAccept(exchangeRateResponse -> {
                     conversionRates.clear();
                     conversionRates.putAll(exchangeRateResponse.conversionRates());
                     setLastUpdate(exchangeRateResponse.timeLastUpdateUtc());
                     exchangeRatesUpdated = true;
+                }).exceptionally(throwable -> {
+                    log.error("On exchange rates update failed, retrieve USD", throwable);
+                    return null;
                 });
     }
 
@@ -41,6 +51,7 @@ public class ExchangeController {
     public double getCurrencyValue(String code) {
         if (getToCurrencyCode() != null && getToCurrencyCode().equalsIgnoreCase(code)) {
             if (exchangeRatesUpdated) {
+                log.info("Updating base exchange rates from {}", baseCode);
                 setCurrentValue(conversionRates.getOrDefault(code.toUpperCase(), 0.0d));
                 exchangeRatesUpdated = false;
             }
