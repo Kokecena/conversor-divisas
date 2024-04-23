@@ -9,9 +9,6 @@ import java.net.URI;
 import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
-import java.time.LocalDateTime;
-import java.time.format.DateTimeFormatter;
-import java.util.Locale;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Executor;
 
@@ -20,16 +17,8 @@ public class ExchangeRateService {
     private static final String EXCHANGE_RATE_URL = "https://v6.exchangerate-api.com/v6/".concat(Config.get("service.exchange-rate.api-key"));
     private final Gson gson;
 
-    public ExchangeRateService() {
-        gson = new GsonBuilder()
-                .registerTypeAdapter(
-                        LocalDateTime.class,
-                        (JsonDeserializer<LocalDateTime>) (jsonElement, type, jsonDeserializationContext) -> {
-                            DateTimeFormatter formatter = DateTimeFormatter.ofPattern("EEE, dd MMM yyyy HH:mm:ss Z", Locale.ENGLISH);
-                            return LocalDateTime.parse(jsonElement.getAsString(), formatter);
-                        })
-                .setFieldNamingPolicy(FieldNamingPolicy.LOWER_CASE_WITH_UNDERSCORES)
-                .create();
+    public ExchangeRateService(Gson gson) {
+        this.gson = gson;
     }
 
     public CompletableFuture<ExchangeRateResponse> getExchangeFrom(String baseCode, Executor executor) {

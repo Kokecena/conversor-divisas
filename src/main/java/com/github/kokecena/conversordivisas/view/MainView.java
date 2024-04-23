@@ -5,9 +5,7 @@ import com.formdev.flatlaf.extras.FlatSVGIcon;
 import com.github.kokecena.conversordivisas.commons.KLFactory;
 import com.github.kokecena.conversordivisas.components.QueryTextField;
 import com.github.kokecena.conversordivisas.components.combobox.CurrencyComboBox;
-import com.github.kokecena.conversordivisas.exchangerate.model.ExchangeRateCodes;
-import com.github.kokecena.conversordivisas.exchangerate.service.ExchangeRateService;
-import com.github.kokecena.conversordivisas.service.ExchangeService;
+import com.github.kokecena.conversordivisas.controller.ExchangeController;
 import io.avaje.config.Config;
 import io.github.parubok.swingfx.beans.binding.Bindings;
 import net.miginfocom.swing.MigLayout;
@@ -30,19 +28,13 @@ import static io.github.parubok.fxprop.SwingPropertySupport.textProperty;
 
 
 /**
- * Actualizar
- * - Mejorar el codigo caquiña y nombres
- * <p>
  * Agregar
- * - Inyeccion de dependencia
  * - Historial
- * - Ultima actualizacion de divisas
  * - Banderas ???
  */
 public class MainView extends JFrame {
 
-    private final ExchangeRateService exchangeRateService;
-    private final ExchangeService service;
+    private final ExchangeController controller;
     private CurrencyComboBox mainCurrencyCb;
     private CurrencyComboBox secondaryCurrencyCb;
     private QueryTextField mainCurrencyText;
@@ -53,18 +45,27 @@ public class MainView extends JFrame {
     private JLabel center;
     private JLabel south;
 
-    public MainView(ExchangeRateService exchangeRateService) {
-        this.exchangeRateService = exchangeRateService;
-        this.service = new ExchangeService(exchangeRateService);
+    public MainView(ExchangeController controller) {
+        this.controller = controller;
         initComponents();
     }
 
-    public void startApp() {
-        setupComboBox().thenComposeAsync(unused -> service.updateExchangeRatesFrom(FIRST_CODE, SwingUtilities::invokeLater))
+    public void init() {
+        setupComboBox().thenComposeAsync(unused -> controller.updateExchangeRatesFrom(FIRST_CODE, SwingUtilities::invokeLater))
                 .thenRunAsync(this::setupWindow)
                 .thenAccept(unused -> {
                     mainCurrencyText.setText(Config.get("app.currency.start-value"));
-                    service.setBaseCurrencyCode(SECOND_CODE);
+                    controller.setToCurrencyCode(SECOND_CODE);
+                });
+    }
+
+    private CompletableFuture<Void> setupComboBox() {
+        return controller.getSupportedCodes(SwingUtilities::invokeLater)
+                .thenAccept(stringStringMap -> {
+                    mainCurrencyCb.setModel(stringStringMap);
+                    secondaryCurrencyCb.setModel(stringStringMap);
+                    mainCurrencyCb.setCurrency(FIRST_CODE);
+                    secondaryCurrencyCb.setCurrency(SECOND_CODE);
                 });
     }
 
@@ -76,17 +77,6 @@ public class MainView extends JFrame {
         setDefaultCloseOperation(EXIT_ON_CLOSE);
         setResizable(false);
         setVisible(true);
-    }
-
-    private CompletableFuture<Void> setupComboBox() {
-        return exchangeRateService.getSupportedCodes(SwingUtilities::invokeLater)
-                .thenApply(ExchangeRateCodes::supportedCodes)
-                .thenAccept(stringStringMap -> {
-                    mainCurrencyCb.setModel(stringStringMap);
-                    secondaryCurrencyCb.setModel(stringStringMap);
-                    mainCurrencyCb.setCurrency(FIRST_CODE);
-                    secondaryCurrencyCb.setCurrency(SECOND_CODE);
-                });
     }
 
     private void initComponents() {
@@ -135,15 +125,15 @@ public class MainView extends JFrame {
                         .concat(code);
             }
             return "";
-        }, selectedItemProperty(secondaryCurrencyCb), service.currentValueProperty(), mainCurrencyText.queryProperty()));
+        }, selectedItemProperty(secondaryCurrencyCb), controller.currentValueProperty(), mainCurrencyText.queryProperty()));
         textProperty(south).bind(Bindings.createStringBinding(() -> {
-            LocalDateTime lastUpdate = service.getLastUpdate();
+            LocalDateTime lastUpdate = controller.getLastUpdate();
             if (lastUpdate == null) {
                 return "";
             }
             DateTimeFormatter pattern = DateTimeFormatter.ofPattern("dd MMM, hh:mm a");
             return lastUpdate.format(pattern);
-        }, service.lastUpdateProperty()));
+        }, controller.lastUpdateProperty()));
     }
 
     private void setupListeners() {
@@ -157,20 +147,24 @@ public class MainView extends JFrame {
                 e.consume();
             }
         }));
-        service.baseCurrencyCodeProperty().addListener((o, oldCode, newCode) -> secondaryCurrencyText.setText(calculateExchange(newCode).toString()));
+        controller.toCurrencyCodeProperty().addListener((o, oldCode, newCode) -> secondaryCurrencyText.setText(calculateExchange(newCode).toString()));
         mainCurrencyText.queryProperty().addListener((o, oldCode, newCode) -> secondaryCurrencyText.setText(calculateExchange(newCode).toString()));
         mainCurrencyCb.addActionListener(
-                e -> service.updateExchangeRatesFrom(mainCurrencyCb.getCurrentCurrency().code(), SwingUtilities::invokeLater)
-                        .thenAccept(unused -> mainCurrencyText.setText(Config.get("app.currency.start-value")))
+                e -> controller.updateExchangeRatesFrom(
+                        mainCurrencyCb.getCurrentCurrency().code(),
+                        SwingUtilities::invokeLater
+                ).thenAccept(
+                        unused -> mainCurrencyText.setText(Config.get("app.currency.start-value"))
+                )
         );
-        secondaryCurrencyCb.addActionListener(e -> service.setBaseCurrencyCode(secondaryCurrencyCb.getCurrentCurrency().code()));
+        secondaryCurrencyCb.addActionListener(e -> controller.setToCurrencyCode(secondaryCurrencyCb.getCurrentCurrency().code()));
     }
 
     public BigDecimal calculateExchange(String code) {
         String currencyToExchange = mainCurrencyText.getQuery();
         boolean isEmptyOrBlankOrIsDot = currencyToExchange.isBlank() || currencyToExchange.isEmpty() || currencyToExchange.equals(".");
         double currValue = isEmptyOrBlankOrIsDot ? 0.0 : Double.parseDouble(currencyToExchange);
-        return BigDecimal.valueOf(currValue * service.getCurrencyValue(code))
+        return BigDecimal.valueOf(currValue * controller.getCurrencyValue(code))
                 .setScale(3, RoundingMode.CEILING);
     }
 

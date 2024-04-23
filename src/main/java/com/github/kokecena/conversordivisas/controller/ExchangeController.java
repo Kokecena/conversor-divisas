@@ -1,5 +1,6 @@
-package com.github.kokecena.conversordivisas.service;
+package com.github.kokecena.conversordivisas.controller;
 
+import com.github.kokecena.conversordivisas.exchangerate.model.ExchangeRateCodes;
 import com.github.kokecena.conversordivisas.exchangerate.service.ExchangeRateService;
 import io.github.parubok.swingfx.beans.property.*;
 
@@ -9,21 +10,21 @@ import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Executor;
 
-public class ExchangeService {
+public class ExchangeController {
 
     private final Map<String, Double> conversionRates = new HashMap<>();
     private boolean exchangeRatesUpdated;
     private final ExchangeRateService exchangeRateService;
-    private StringProperty baseCurrencyCode;
+    private StringProperty toCurrencyCode;
     private ReadOnlyObjectWrapper<LocalDateTime> lastUpdate;
     private ReadOnlyDoubleWrapper currentValue;
 
-    public ExchangeService(ExchangeRateService service) {
+    public ExchangeController(ExchangeRateService service) {
         exchangeRateService = service;
     }
 
-    public CompletableFuture<Void> updateExchangeRatesFrom(String code, Executor executor) {
-        return exchangeRateService.getExchangeFrom(code, executor)
+    public CompletableFuture<Void> updateExchangeRatesFrom(String baseCode, Executor executor) {
+        return exchangeRateService.getExchangeFrom(baseCode, executor)
                 .thenAccept(exchangeRateResponse -> {
                     conversionRates.clear();
                     conversionRates.putAll(exchangeRateResponse.conversionRates());
@@ -32,36 +33,42 @@ public class ExchangeService {
                 });
     }
 
+    public CompletableFuture<Map<String, String>> getSupportedCodes(Executor executor) {
+        return exchangeRateService.getSupportedCodes(executor)
+                .thenApply(ExchangeRateCodes::supportedCodes);
+    }
+
     public double getCurrencyValue(String code) {
-        if (getBaseCurrencyCode() != null && getBaseCurrencyCode().equalsIgnoreCase(code)) {
+        if (getToCurrencyCode() != null && getToCurrencyCode().equalsIgnoreCase(code)) {
             if (exchangeRatesUpdated) {
                 setCurrentValue(conversionRates.getOrDefault(code.toUpperCase(), 0.0d));
                 exchangeRatesUpdated = false;
             }
             getCurrentValue();
         }
-        setBaseCurrencyCode(code);
+        setToCurrencyCode(code);
         return getCurrentValue();
     }
 
-    public String getBaseCurrencyCode() {
-        return baseCurrencyCode == null ? null : baseCurrencyCode.get();
+    public String getToCurrencyCode() {
+        return toCurrencyCode == null ? null : toCurrencyCode.get();
     }
 
-    public void setBaseCurrencyCode(String baseCurrencyCode) {
-        baseCurrencyCodeProperty().set(baseCurrencyCode);
+    public void setToCurrencyCode(String toCurrencyCode) {
+        toCurrencyCodeProperty().set(toCurrencyCode);
     }
 
-    public StringProperty baseCurrencyCodeProperty() {
-        if (baseCurrencyCode == null) {
-            baseCurrencyCode = new SimpleStringProperty() {
+    public StringProperty toCurrencyCodeProperty() {
+        if (toCurrencyCode == null) {
+            toCurrencyCode = new SimpleStringProperty() {
                 @Override
                 protected void invalidated() {
-                    setCurrentValue(conversionRates.getOrDefault(get().toUpperCase(), 0.0d));
+                    String code = get().toUpperCase();
+                    setCurrentValue(conversionRates.getOrDefault(code, 0.0));
                 }
             };
         }
-        return baseCurrencyCode;
+        return toCurrencyCode;
     }
 
     public double getCurrentValue() {

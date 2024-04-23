@@ -1,17 +1,18 @@
 package com.github.kokecena.conversordivisas.components.combobox;
 
-import com.github.kokecena.conversordivisas.components.combobox.exceptions.CurrencyNotFoundException;
 import com.github.kokecena.conversordivisas.components.combobox.model.Currency;
 
 import javax.swing.*;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.function.Supplier;
 
 public class CurrencyComboBox extends JComboBox<Currency> {
 
     private List<Currency> currencies;
     private DefaultComboBoxModel<Currency> codesComboBoxModel;
+    private Supplier<Currency> DEFAULT_CURRENCY = () -> new Currency("USD", "United States Dollar");
 
     public void setCurrency(String code) {
         if (currencies == null || currencies.isEmpty()) {
@@ -20,17 +21,7 @@ public class CurrencyComboBox extends JComboBox<Currency> {
         codesComboBoxModel.setSelectedItem(currencies.stream()
                 .filter(currency -> currency.code().equalsIgnoreCase(code))
                 .findFirst()
-                .orElseThrow(() -> new CurrencyNotFoundException(code)));
-    }
-
-    public void setCurrency(Currency c) {
-        if (currencies == null || currencies.isEmpty()) {
-            throw new IllegalStateException("Model not initialized!");
-        }
-        codesComboBoxModel.setSelectedItem(currencies.stream()
-                .filter(currency -> currency.code().equalsIgnoreCase(c.code()))
-                .findFirst()
-                .orElseThrow(() -> new CurrencyNotFoundException(c.code())));
+                .orElseGet(DEFAULT_CURRENCY));
     }
 
     public Optional<Currency> getSelectedCurrency() {
